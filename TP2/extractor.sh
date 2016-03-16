@@ -1,21 +1,14 @@
+# on recupere la sortie du -h dans file.txt
 /home/stev/tp2-app.sh -h | sed -e '/^$/d' > file.txt
+
+# on recupere tous les arguments (ligne commence par  -)
 sed '/^ -/!d' file.txt > arg.txt
+# on recupere toutes les contraintes (contiennent un &)
+sed '/&/!d' file.txt > contraintes.txt
 
-#grep '[-]' file.txt | awk '$0!~ /^ / {print}'
-#grep '^-.*' file.txt > arg.txt
-# on efface les lignes vides
-#pour chaque line il faut matcher avec commence par -
+# on efface les &, = dans contraintes.txt et les virgules dans arg.txt
+sed -i "s/& //g" contraintes.txt
+sed -i "s/\= //g" contraintes.txt
+sed -i "s/,//g" arg.txt
 
-# lire mot par mot
-#for line in $(cat file.txt);
-#do
-	#echo "$line";
-#done
-echo "test"
-# lire line par line
-while read line
-do
-	#echo "$line"
-	#echo "$line" | sed -e '/^-/!d' > arg.txt
-	echo "$line" | sed -n '/^-/p'
-done < contraintes.txt
+# on appelle le fichier python
