@@ -1,85 +1,92 @@
-#from enum import Enum
-
-print 'Test'
-f = open('arg.txt','r')
-lignes  = f.readlines()
-f.close()
-
-f = open('contraintes.txt','r')
-constraints = f.readlines()
-f.close
-
-liste={}
-listeArg=[]
-listeContraintes=[]
-
-#Etype = Enum('flag', 'nonFlag')
-
+# classe argument : permet de verifier si un argument est un flag, et quelles valeurs sont possibles
 class Argument:
 
+	# constructeur
 	def __init__(self,nom,isFlag,values):
-		# contructeur
 		self.nom=nom
 		self.isFlag=isFlag
 		if (isFlag):
 			values=['_on','_off']
 		self.values=values
-	
+		
+	# affichage : utile pour le debug	
 	def toString(self):
+		print ""
+		print "**********"
 		print "nom :"
 		print self.nom
 		print "is flag :"
 		print self.isFlag
 		print "values :"
 		print self.values
-"""
-for ligne in lignes:
-	print ligne
+		print "**********"
+		print ""
+
+# conversion du fichier texte en tableau d'argument
+def createListeArg(file):
+	# recuperation du fichier d'arguments
+	#f = open('arg.txt','r')
+        f = open(file,'r')
+	lignes  = f.readlines()
+	f.close()
 	
-	values = ligne.split()
-	key=values[0]
-	values.remove(key)
-	if (values == ['flag']):
-		values = ['_on','_off']
-	liste[key] = values
+	# variables utilisees
+	listeArg=[]
 
-print liste
-"""
-print "test avec classe argument"
-for ligne in lignes:
-	values = ligne.split()
-	nom = values[0]
-	values.remove(nom)	
-	listeArg.append(Argument(nom,(values==['flag']),values))
+	for ligne in lignes:
+		values = ligne.split()
+		nom = values[0]
+		values.remove(nom)	
+		listeArg.append(Argument(nom,(values==['flag']),values))
 
-for element in listeArg :
-	element.toString()
+        return listeArg;
+
+# conversion du fichier texte en tableau de contraintes 
+# mise en forme des contraintes : si la variable est un flag on ajoute sa valeur _on
+# au final on aura juste une suite de variable / valeur facile a utiliser
+def createListeContraintes(file,listeArg):
+	# recuperation du fichier de contraintes
+	f = open(file,'r')
+	constraints = f.readlines()
+	f.close
+
+	# variables utilisees
+	listeContraintes=[]
+	
+	# on traite chaque contrainte puis on l'ajoute a la liste des contraintes
+	for constraint in constraints :
+		values = constraint.split()
+		line=[];
+		# on traite chacune des valeurs de la contrainte :
+		# - si c'est un flag, on lui ajoute la valeur _on
+		# - sinon, on recupere la valeur fournie		
+		while (values != []):
+			nom=values[0]
+			line.append(nom)
+			values.remove(nom)
+			for e in listeArg :
+				if (('-'+nom)==e.nom):
+					if e.isFlag :
+						line.append('_on')
+					else :
+						val=values[0]
+						line.append(val)
+						values.remove(val)
+		
+		listeContraintes.append(line)
+	return listeContraintes;
 
 
-for constraint in constraints :
-	values = constraint.split()
-	isFlag=False
-	print values
-	arg1=values[0]
-	for e in listeArg :
-		isFlag=((('-'+arg1)==e.nom) and e.isFlag)
-	if isFlag :
-		val1='_on'
-		arg2=values[1]
-		for e in listeArg :
-			if((('-'+arg2)==e.nom) and e.isFlag):
-				val2='_on'
-			else :
-				val2=values[2]
-	else :
-		val1=values[1]
-		arg2=values[2]
-		for e in listeArg:
-			if(('-'+arg2)==e.nom):
-				if (e.isFlag):
-					val2='_on'
-				else :
-					val2=values[3]
-	listeContraintes.append([arg1,val1,arg2,val2])
+# creation de la liste des arguments
+listeArguments = createListeArg('arg.txt')
+# affichage
+print "\n affichage de la liste des arguments"
+for element in listeArguments :
+        element.toString()
 
+# creation de la liste des contraintes
+listeContraintes = createListeContraintes('contraintes.txt',listeArguments)
+# affichage
+print "\n affichage de la liste des contraintes"
 print listeContraintes
+
