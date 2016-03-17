@@ -40,9 +40,13 @@ class TestSet:
         self.file_args = file_args
         self.file_consts = file_consts
         self.arguments = []
-        self.constraints = []
-        self.pairs = set()
-        self.permutations = set()
+        # constraint separation, between binary constraints, and N-ary constraints
+        self.complex_constraints = set()
+        self.pair_constraints = set()
+        # pairs still to be satisfied
+        self.pairs = []
+        # permutations of arguments to be tested for a coverage test
+        self.permutations = []
 
     # conversion du fichier texte en tableau d'argument
     def create_list_arg(self):
@@ -62,7 +66,7 @@ class TestSet:
     # conversion du fichier texte en tableau de contraintes
     # mise en forme des contraintes : si la variable est un flag on ajoute sa valeur _on
     # au final on aura juste une suite de variable / valeur facile a utiliser
-    def create_list_constraints(self):
+    def build_constraints(self):
         """
         conversion of the constraint file, taking conjunctions expressed in the file
         to a list of constraints on arguments permutations, expressed in tuples of form
@@ -77,28 +81,27 @@ class TestSet:
         # on traite chaque contrainte puis on l'ajoute a la liste des contraintes
         for constraint in constraints:
             tokens = constraint.split()
-            line = []
+            line = set()
+            arg_ctr = 0
             # on traite chacune des valeurs de la contrainte :
             # - si c'est un flag, on lui ajoute la valeur _on
             # - sinon, on recupere la valeur fournie
             while tokens:
                 nom = tokens.pop(0)
-
+                arg_ctr += 1
                 for e in self.arguments:
                     if ('-' + nom) == e.name:
                         if e.isFlag:
-                            line.append((nom, "_on"))
+                            line.add((nom, "_on"))
                         else:
                             val = tokens.pop(0)
-                            line.append((nom, val))
+                            line.add((nom, val))
 
-            self.constraints.append(line)
+            if arg_ctr == 2:
+                self.pair_constraints.add(frozenset(line))
+            else:
+                self.complex_constraints.add(frozenset(line))
 
-    # def replace_invalid_permutations(self, pairs, constraints):
-    #     for arguments in pairs:
-    #         for constraint in constraints:
-    #             if constraint in arguments:
-    #                 replace_permutation(arguments, constraints)
 
     def delete_matched_pairs(self, permutation_seed):
         """
@@ -110,19 +113,35 @@ class TestSet:
                 print(pair)
                 self.pairs.remove(pair)
 
-    def create_args_permutations(self):
-        init_pairs = self.pairs_to_cover()
-        while init_pairs:
-            permutation_seed = list(init_pairs.pop())
-            permutation_seed.append()
-            permutation_seed = tuple(permutation_seed)
-            self.delete_matched_pairs(permutation_seed)
+    def get_valid_args(self, permutation_seed):
+        for pair in self.pairs:
+            if pair[0] in permutation_seed:
+                permutation_tmp = set(permutation_seed)
+                permutation_tmp.add(pair[1])
+                for constraint in self.pair_constraints:
+                    new_arg_pair = {(arg, val) , pair[1]}
+                    for
+                    if  <=
+
+
+
+    def build_args_permutations(self):
+        init_perms = self.pairs_to_cover()
+        permutations_tmp = []
+        while self.pairs:
+            if init_perms:
+                permutation_seed = list(init_perms.pop())
+                new_arg_list = get_valid_args(permutation_seed)
+                permutation_seed.append(select_best_new_arg(new_arg_list))
+                permutation_seed = set(permutation_seed)
+                self.delete_matched_pairs(permutation_seed)
+                permutations_tmp.append(permutation_seed)
 
     def pairs_to_cover(self):
         """
         function populating the set of pairs that are to be tested for the application
         :return: the constructed set() of pairs that will be the seed of the set of permutations
-        in which elements of form (arg1, val1, arg2, val2)
+        in which elements of form (arg1, val1, arg2, val2), and defines the set of pairs remaining.
         """
 
         init_pairs = set()
@@ -150,7 +169,7 @@ if __name__ == "__main__":
     ts = TestSet("plop", "arg.txt", "contraintes.txt")
     # creation de la liste des arguments
     ts.create_list_arg()
-    ts.create_list_constraints()
+    ts.build_constraints()
     # affichage
     # print("\n affichage de la liste des arguments")
     # for element in ts.arguments:
