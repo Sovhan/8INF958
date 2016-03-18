@@ -28,6 +28,7 @@ class TestSet:
     class constructing a set of permutations of arguments to call on an application to execute a pairwise
     cover test.
     """
+
     def __init__(self, app_name, file_args, file_consts):
         """
         constructor
@@ -41,8 +42,8 @@ class TestSet:
         self.file_consts = file_consts
         self.arguments = []
         # constraint separation, between binary constraints, and N-ary constraints
-        self.complex_constraints = set()
-        self.pair_constraints = set()
+        self.complex_constraints = []
+        self.pair_constraints = []
         # pairs still to be satisfied
         self.pairs = []
         # permutations of arguments to be tested for a coverage test
@@ -50,8 +51,11 @@ class TestSet:
 
     # conversion du fichier texte en tableau d'argument
     def create_list_arg(self):
+        """
+
+        :return:
+        """
         # recuperation du fichier d'arguments
-        # f = open('arg.txt','r')
         f = open(self.file_args, 'r')
         lignes = f.readlines()
         f.close()
@@ -96,46 +100,110 @@ class TestSet:
                         else:
                             val = tokens.pop(0)
                             line.add((nom, val))
+                        break
 
             if arg_ctr == 2:
-                self.pair_constraints.add(frozenset(line))
+                self.pair_constraints.append(frozenset(line))
             else:
-                self.complex_constraints.add(frozenset(line))
+                self.complex_constraints.append(frozenset(line))
 
-
-    def delete_matched_pairs(self, permutation_seed):
+    def delete_matched_pairs(self, permutation):
         """
         deletion of pairs that are matched by a set of couple (argument, value)
-        :param permutation_seed: set of couple (argument, value) to evaluate for the match
+        :param permutation: set of couple (argument, value) to evaluate for the match
         """
         for pair in self.pairs:
-            if pair.issubset(permutation_seed):
-                print(pair)
+            if pair.issubset(permutation):
                 self.pairs.remove(pair)
 
-    def get_valid_args(self, permutation_seed):
+    def is_transgressing_constraint(self, permutation):
+        """
+
+        :param permutation:
+        :return:
+        """
+        for constraint in self.pair_constraints:
+            if constraint.issubset(permutation):
+                return True
+        for constraint in self.complex_constraints:
+            if constraint.issubset(permutation):
+                return True
+        return False
+
+    def eval_permutation(self, permutation):
+        """
+
+        :param permutation:
+        :return:
+        """
+        return sum([1 for pair in self.pairs if pair <= permutation])
+
+    def get_valid_arg(self, permutation):
+        """
+        :param permutation:
+        :return:
+        """
+        select_ctr = 0
+        max_sat = 0
+        selected = None
+        permutation_args = [argval[0] for argval in permutation]
         for pair in self.pairs:
-            if pair[0] in permutation_seed:
-                permutation_tmp = set(permutation_seed)
-                permutation_tmp.add(pair[1])
-                for constraint in self.pair_constraints:
-                    new_arg_pair = {(arg, val) , pair[1]}
-                    for
-                    if  <=
-
-
+            list_pair = list(pair)
+            if (list_pair[0] in permutation and list_pair[1][0] not in permutation_args) or \
+               (list_pair[1] in permutation and list_pair[0][0] not in permutation_args):
+                # permutation is already a set but we need a deepcopy
+                permutation_tmp = set(permutation)
+                first = list_pair[0] in permutation
+                if first:
+                    permutation_tmp.add(list_pair[1])
+                else:
+                    permutation_tmp.add(list_pair[0])
+                if not self.is_transgressing_constraint(permutation_tmp):
+                    sat = self.eval_permutation(permutation_tmp)
+                    if sat > max_sat:
+                        max_sat = sat
+                        selected = list_pair[first]
+                    select_ctr += 1
+            if select_ctr >= 5:
+                break
+        return selected
 
     def build_args_permutations(self):
+        """
+
+        :return:
+        """
         init_perms = self.pairs_to_cover()
         permutations_tmp = []
         while self.pairs:
             if init_perms:
-                permutation_seed = list(init_perms.pop())
-                new_arg_list = get_valid_args(permutation_seed)
-                permutation_seed.append(select_best_new_arg(new_arg_list))
-                permutation_seed = set(permutation_seed)
+                permutation_seed = set(init_perms.pop())
+                new_arg = self.get_valid_arg(permutation_seed)
+                if new_arg is None:
+                    permutations_tmp.extend(init_perms)
+                    init_perms.clear()
+                permutation_seed.add(new_arg)
                 self.delete_matched_pairs(permutation_seed)
                 permutations_tmp.append(permutation_seed)
+            else:
+                if permutations_tmp:
+                    permutation_seed = set(permutations_tmp.pop(0))
+                else:
+                    permutation_seed = set(self.pairs.pop(0))
+                if len(permutation_seed) < len(self.arguments):
+                    new_arg = self.get_valid_arg(permutation_seed)
+                    if new_arg is None:
+                        permutations_tmp.append(permutation_seed)
+                        permutations_tmp.insert(0, set(self.pairs.pop(0)))
+                        continue
+                        # raise Exception(" error in rolling phase of permutations build")
+                    permutation_seed.add(new_arg)
+                    self.delete_matched_pairs(permutation_seed)
+                    permutations_tmp.append(permutation_seed)
+                else:
+                    self.permutations.append(permutation_seed)
+
+        self.permutations.extend(permutations_tmp)
 
     def pairs_to_cover(self):
         """
@@ -143,25 +211,22 @@ class TestSet:
         :return: the constructed set() of pairs that will be the seed of the set of permutations
         in which elements of form (arg1, val1, arg2, val2), and defines the set of pairs remaining.
         """
-
         init_pairs = set()
         argc = len(self.arguments)
-        for value1 in self.arguments[0].values:
-                for k in range(1, argc):
-                    for value2 in self.arguments[k].values:
-                        init_pairs.add(
-                            ((self.arguments[0].name, value1),
-                             (self.arguments[k].name, value2))
-                        )
-        for i in range(1, argc):
+
+        for i in range(argc):
             for value1 in self.arguments[i].values:
-                for j in range(i+1, argc):
+                for j in range(i + 1, argc):
                     for value2 in self.arguments[j].values:
-                        self.pairs.add(
-                            ((self.arguments[i].name, value1),
-                             (self.arguments[j].name, value2))
-                        )
-        print(init_pairs, self.pairs)
+                        if i == 0 and j == 1:
+                            init_pairs.add(frozenset([(self.arguments[0].name, value1),
+                                                      (self.arguments[1].name, value2)])
+                                           )
+                        else:
+                            self.pairs.append(frozenset([(self.arguments[i].name, value1),
+                                                         (self.arguments[j].name, value2)])
+                                              )
+
         return init_pairs
 
 
@@ -170,13 +235,16 @@ if __name__ == "__main__":
     # creation de la liste des arguments
     ts.create_list_arg()
     ts.build_constraints()
-    # affichage
+    ts.build_args_permutations()
+    print(len(ts.permutations))
+    for elem in ts.permutations:
+        print(elem)
+    # # affichage
     # print("\n affichage de la liste des arguments")
     # for element in ts.arguments:
     #     element.toString()
     #
     # # affichage
     # print("\n affichage de la liste des contraintes")
-    # print(ts.constraints)
-
-    ts.pairs_to_cover()
+    # print(ts.pair_constraints)
+    # print(ts.complex_constraints)
