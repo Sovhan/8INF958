@@ -1,3 +1,6 @@
+# coding : utf-8
+import sys
+
 # classe argument : permet de verifier si un argument est un flag, et quelles valeurs sont possibles
 class Argument:
     # constructeur
@@ -33,9 +36,9 @@ class TestSet:
         """
         constructor
         :param app_name: the string to call to execute the app without arguments
-        :param file_args: file containing the possible arguments for the app and their values
-        :param file_consts: file containing the constraints defining forbidden combinations
-        of arguments and values.
+        :param file_args: path to file containing the possible arguments for the app and their values
+        :param file_consts: path to file containing the constraints defining forbidden combinations
+        of arguments and values in conjunction.
         """
         self.app_name = app_name
         self.file_args = file_args
@@ -56,7 +59,11 @@ class TestSet:
         :return:
         """
         # recuperation du fichier d'arguments
-        f = open(self.file_args, 'r')
+        try:
+            f = open(self.file_args, 'r')
+        except FileNotFoundError:
+            raise FileNotFoundError("No arguments file found at specified path")
+
         lignes = f.readlines()
         f.close()
 
@@ -70,7 +77,7 @@ class TestSet:
     # conversion du fichier texte en tableau de contraintes
     # mise en forme des contraintes : si la variable est un flag on ajoute sa valeur _on
     # au final on aura juste une suite de variable / valeur facile a utiliser
-    def build_constraints(self):
+    def create_list_constraints(self):
         """
         conversion of the constraint file, taking conjunctions expressed in the file
         to a list of constraints on arguments permutations, expressed in tuples of form
@@ -78,7 +85,12 @@ class TestSet:
         """
 
         # recuperation du fichier de contraintes
-        f = open(self.file_consts, 'r')
+        try:
+            f = open(self.file_consts, 'r')
+        except FileNotFoundError:
+            print("no constraint file found")
+            return
+
         constraints = f.readlines()
         f.close()
 
@@ -118,9 +130,9 @@ class TestSet:
 
     def is_transgressing_constraint(self, permutation):
         """
-
-        :param permutation:
-        :return:
+        tests a permutation for constraint infringement
+        :param permutation: permutation to test
+        :return: True if the permutation is invalid regarding the constraints, False else
         """
         for constraint in self.pair_constraints:
             if constraint.issubset(permutation):
@@ -132,15 +144,15 @@ class TestSet:
 
     def eval_permutation(self, permutation):
         """
-
-        :param permutation:
-        :return:
+        :param permutation: (argument, value)list permutation
+        :return: number of yet unmatched pairs ((arg1, val1), (arg2, val2)) matched by this permutation.
         """
-        return sum([1 for pair in self.pairs if pair <= permutation])
+        return sum([pair <= permutation for pair in self.pairs])
 
-    def get_valid_arg(self, permutation):
+    def get_valid_arg(self, permutation, exploration_window=10):
         """
         :param permutation:
+        :param exploration_window: the set of valid arguments for this set to be compared
         :return:
         """
         select_ctr = 0
@@ -152,26 +164,27 @@ class TestSet:
             if (list_pair[0] in permutation and list_pair[1][0] not in permutation_args) or \
                (list_pair[1] in permutation and list_pair[0][0] not in permutation_args):
                 # permutation is already a set but we need a deepcopy
-                permutation_tmp = set(permutation)
+                permutation_tmp = permutation
                 first = list_pair[0] in permutation
                 if first:
                     permutation_tmp.add(list_pair[1])
+                    permutation_args.append(list_pair[1][0])
                 else:
                     permutation_tmp.add(list_pair[0])
+                    permutation_args.append(list_pair[0][0])
                 if not self.is_transgressing_constraint(permutation_tmp):
                     sat = self.eval_permutation(permutation_tmp)
                     if sat > max_sat:
                         max_sat = sat
                         selected = list_pair[first]
                     select_ctr += 1
-            if select_ctr >= 5:
+            if select_ctr >= exploration_window:
                 break
         return selected
 
     def build_args_permutations(self):
         """
-
-        :return:
+        method building the set of covering permutations
         """
         init_perms = self.pairs_to_cover()
         permutations_tmp = []
@@ -180,8 +193,8 @@ class TestSet:
                 permutation_seed = set(init_perms.pop())
                 new_arg = self.get_valid_arg(permutation_seed)
                 if new_arg is None:
-                    permutations_tmp.extend(init_perms)
-                    init_perms.clear()
+                    permutations_tmp.append(permutation_seed)
+                    continue
                 permutation_seed.add(new_arg)
                 self.delete_matched_pairs(permutation_seed)
                 permutations_tmp.append(permutation_seed)
@@ -230,21 +243,34 @@ class TestSet:
         return init_pairs
 
 
+def generate_commands(test_set, commands_file):
+
+    f = open(commands_file, 'w')
+    for permutation in test_set.permutations:
+        command = test_set.app_name
+        for (arg, val) in permutation:
+            if val == '_on':
+                command += " " + arg
+            elif val == '_off':
+                continue
+            else:
+                command += " {} {}".format(arg, val)
+        command += '\n'
+        f.write(command)
+
+
+def usage():
+    print("question1.py <app_name> <argument_file> <constraint_file> <command_output_file>")
+
+
 if __name__ == "__main__":
-    ts = TestSet("plop", "arg.txt", "contraintes.txt")
+    # if sys.argc != 5:
+    #     usage()
+    #     exit(1)
+    #
+    ts = TestSet(sys.argv[1], sys.argv[2], sys.argv[3])
     # creation de la liste des arguments
     ts.create_list_arg()
-    ts.build_constraints()
+    ts.create_list_constraints()
     ts.build_args_permutations()
-    print(len(ts.permutations))
-    for elem in ts.permutations:
-        print(elem)
-    # # affichage
-    # print("\n affichage de la liste des arguments")
-    # for element in ts.arguments:
-    #     element.toString()
-    #
-    # # affichage
-    # print("\n affichage de la liste des contraintes")
-    # print(ts.pair_constraints)
-    # print(ts.complex_constraints)
+    generate_commands(ts, sys.argv[4])
