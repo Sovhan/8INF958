@@ -1,5 +1,5 @@
 # on recupere la sortie du -h dans file.txt
-/home/stev/tp2-app.sh -h | sed -e '/^$/d' > file.txt
+$1 -h | sed -e '/^$/d' > file.txt
 
 # on recupere tous les arguments (ligne commence par  -)
 sed '/^ *-/!d' file.txt > arg.txt

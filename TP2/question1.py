@@ -374,8 +374,6 @@ if __name__ == "__main__":
         exit(1)
 
     ts = TestSet(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-    ts.generate_commands()
-    ts.check_cover()
     ts.complete_short_permutations()
     ts.generate_commands()
     ts.check_cover()
