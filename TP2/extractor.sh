@@ -12,5 +12,7 @@ sed -i "s/& //g" contraintes.txt
 sed -i "s/\= //g" contraintes.txt
 sed -i "s/^ *-//g" contraintes.txt
 sed -i "s/,//g" arg.txt
+rm file.txt
 
 # on appelle le fichier python
+python3 question1.py $1 arg.txt contraintes.txt commandes.txt
