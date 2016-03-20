@@ -1,16 +1,14 @@
 # coding : utf-8
 import sys
 
+
 # classe argument : permet de verifier si un argument est un flag, et quelles valeurs sont possibles
 class Argument:
     # constructeur
-    def __init__(self, name, isFlag, values):
+    def __init__(self, name, is_flag, values):
         self.name = name
-        self.isFlag = isFlag
-        if isFlag:
-            self.values = ['_on', '_off']
-        else:
-            self.values = values
+        self.is_flag = is_flag
+        self.values = values
 
     # affichage : utile pour le debug
     def toString(self):
@@ -32,7 +30,7 @@ class TestSet:
     cover test.
     """
 
-    def __init__(self, app_name, file_args, file_consts):
+    def __init__(self, app_name, file_args, file_consts, file_commands):
         """
         constructor
         :param app_name: the string to call to execute the app without arguments
@@ -41,22 +39,32 @@ class TestSet:
         of arguments and values in conjunction.
         """
         self.app_name = app_name
+        if self.app_name.isspace():
+            raise Exception("app_name empty")
         self.file_args = file_args
         self.file_consts = file_consts
+        self.file_commands = file_commands
         self.arguments = []
         # constraint separation, between binary constraints, and N-ary constraints
         self.complex_constraints = []
         self.pair_constraints = []
         # pairs still to be satisfied
+        self.init_pairs = []
         self.pairs = []
         # permutations of arguments to be tested for a coverage test
         self.permutations = []
+        self.cover = []
+
+        # initialisation of object
+        self.create_list_arg()
+        self.create_list_constraints()
+        self.build_pairs_to_cover()
+        self.build_args_permutations()
 
     # conversion du fichier texte en tableau d'argument
     def create_list_arg(self):
         """
-
-        :return:
+        extraction of arg_file into the form of a list of Arguments
         """
         # recuperation du fichier d'arguments
         try:
@@ -68,6 +76,8 @@ class TestSet:
         f.close()
 
         for ligne in lignes:
+            if ligne.isspace():
+                continue
             values = ligne.split()
             nom = values.pop(0)
             self.arguments.append(Argument(nom, values[0] == 'flag', values))
@@ -96,8 +106,10 @@ class TestSet:
 
         # on traite chaque contrainte puis on l'ajoute a la liste des contraintes
         for constraint in constraints:
+            if constraint.isspace():
+                continue
             tokens = constraint.split()
-            line = set()
+            line = []
             arg_ctr = 0
             # on traite chacune des valeurs de la contrainte :
             # - si c'est un flag, on lui ajoute la valeur _on
@@ -107,17 +119,35 @@ class TestSet:
                 arg_ctr += 1
                 for e in self.arguments:
                     if ('-' + nom) == e.name:
-                        if e.isFlag:
-                            line.add((nom, "_on"))
+                        if e.is_flag:
+                            line.append((nom, "flag"))
                         else:
-                            val = tokens.pop(0)
-                            line.add((nom, val))
+                            try:
+                                val = tokens.pop(0)
+                            except IndexError:
+                                print("--------------------------------------------\n" + \
+                                      "constraint file inconsistent with arguments.\n" + \
+                                      "--------------------------------------------", file=sys.stderr)
+                                exit(1)
+
+                            line.append((nom, val))
                         break
 
             if arg_ctr == 2:
-                self.pair_constraints.append(frozenset(line))
+                self.pair_constraints.append(set(line))
             else:
-                self.complex_constraints.append(frozenset(line))
+                self.complex_constraints.append(set(line))
+
+    def build_pairs_to_cover(self):
+        """
+        function populating the list of pairs that are to be tested for the application
+        """
+        argc = len(self.arguments)
+        for i in range(argc):
+            for value1 in self.arguments[i].values:
+                for j in range(i + 1, argc):
+                    for value2 in self.arguments[j].values:
+                        self.pairs.append({(self.arguments[i].name, value1), (self.arguments[j].name, value2)})
 
     def delete_matched_pairs(self, permutation):
         """
@@ -152,7 +182,7 @@ class TestSet:
     def get_valid_arg(self, permutation, exploration_window=10):
         """
         :param permutation:
-        :param exploration_window: the set of valid arguments for this set to be compared
+        :param exploration_window: the number of valid arguments for this set to be compared
         :return:
         """
         select_ctr = 0
@@ -162,115 +192,169 @@ class TestSet:
         for pair in self.pairs:
             list_pair = list(pair)
             if (list_pair[0] in permutation and list_pair[1][0] not in permutation_args) or \
-               (list_pair[1] in permutation and list_pair[0][0] not in permutation_args):
-                # permutation is already a set but we need a deepcopy
-                permutation_tmp = permutation
+                    (list_pair[1] in permutation and list_pair[0][0] not in permutation_args):
                 first = list_pair[0] in permutation
-                if first:
-                    permutation_tmp.add(list_pair[1])
-                    permutation_args.append(list_pair[1][0])
-                else:
-                    permutation_tmp.add(list_pair[0])
-                    permutation_args.append(list_pair[0][0])
-                if not self.is_transgressing_constraint(permutation_tmp):
-                    sat = self.eval_permutation(permutation_tmp)
+                permutation.add(list_pair[first])
+                if not self.is_transgressing_constraint(permutation):
+                    sat = self.eval_permutation(permutation)
                     if sat > max_sat:
                         max_sat = sat
                         selected = list_pair[first]
                     select_ctr += 1
+                permutation.remove(list_pair[first])
             if select_ctr >= exploration_window:
                 break
         return selected
+
+    def generate_pairs_from_permutation(self, permutation):
+        while permutation:
+            pair_tmp = permutation.pop()
+            for pair in permutation:
+                self.pairs.append({pair_tmp, pair})
+
+    def build_args_permutations_grow(self):
+        while self.pairs:
+            if self.permutations:
+                permutation_seed = self.permutations.pop(0)
+            else:
+                permutation_seed = self.pairs.pop(0)
+                permutation_seed = set(permutation_seed)
+            if len(permutation_seed) < len(self.arguments):
+                new_arg = self.get_valid_arg(permutation_seed)
+                if new_arg is None:
+                    self.permutations.append(permutation_seed)
+                    self.permutations.insert(0, set(self.pairs.pop(0)))
+                    continue
+                permutation_seed.add(new_arg)
+                self.delete_matched_pairs(permutation_seed)
+                self.permutations.insert(0, permutation_seed)
+            else:
+                self.cover.append(permutation_seed)
+
+    def refine_permutations(self, grain):
+        """
+        method to reprocess the permutations that are shorter than a certain size
+        :param grain: mail size
+        """
+        for permutation in self.permutations:
+            if len(permutation) < grain:
+                self.generate_pairs_from_permutation(permutation)
+            else:
+                self.cover.append(permutation)
+            self.permutations.remove(permutation)
 
     def build_args_permutations(self):
         """
         method building the set of covering permutations
         """
-        init_perms = self.pairs_to_cover()
-        permutations_tmp = []
-        while self.pairs:
-            if init_perms:
-                permutation_seed = set(init_perms.pop())
-                new_arg = self.get_valid_arg(permutation_seed)
-                if new_arg is None:
-                    permutations_tmp.append(permutation_seed)
-                    continue
-                permutation_seed.add(new_arg)
-                self.delete_matched_pairs(permutation_seed)
-                permutations_tmp.append(permutation_seed)
-            else:
-                if permutations_tmp:
-                    permutation_seed = set(permutations_tmp.pop(0))
-                else:
-                    permutation_seed = set(self.pairs.pop(0))
-                if len(permutation_seed) < len(self.arguments):
-                    new_arg = self.get_valid_arg(permutation_seed)
-                    if new_arg is None:
-                        permutations_tmp.append(permutation_seed)
-                        permutations_tmp.insert(0, set(self.pairs.pop(0)))
-                        continue
-                        # raise Exception(" error in rolling phase of permutations build")
-                    permutation_seed.add(new_arg)
-                    self.delete_matched_pairs(permutation_seed)
-                    permutations_tmp.append(permutation_seed)
-                else:
-                    self.permutations.append(permutation_seed)
+        self.build_args_permutations_grow()
+        self.weld_short_permutations(9 * len(self.arguments) / 10)
+        self.cover.extend(self.permutations)
+        self.permutations.clear()
 
-        self.permutations.extend(permutations_tmp)
-
-    def pairs_to_cover(self):
+    def weld_short_permutations(self, grain, repetitions=3):
         """
-        function populating the set of pairs that are to be tested for the application
-        :return: the constructed set() of pairs that will be the seed of the set of permutations
-        in which elements of form (arg1, val1, arg2, val2), and defines the set of pairs remaining.
+        try to combine all the permutations shorter than a certain size, trying to reduce the final set
+        :param grain: threshold size
+        :param repetitions: number of passes on all the permutations
         """
-        init_pairs = set()
-        argc = len(self.arguments)
+        for _ in range(repetitions):
+            for permutation1 in self.permutations:
+                if len(permutation1) < grain:
+                    args1 = set([arg for (arg, val) in permutation1])
+                    for permutation2 in self.permutations:
+                        args2 = set([arg for (arg, val) in permutation2])
+                        if args1.isdisjoint(args2):
+                            permutation_tmp = permutation1.union(permutation2)
+                            if not self.is_transgressing_constraint(permutation_tmp):
+                                self.permutations.append(permutation_tmp)
+                                self.permutations.remove(permutation1)
+                                self.permutations.remove(permutation2)
+                            break
 
-        for i in range(argc):
-            for value1 in self.arguments[i].values:
-                for j in range(i + 1, argc):
-                    for value2 in self.arguments[j].values:
-                        if i == 0 and j == 1:
-                            init_pairs.add(frozenset([(self.arguments[0].name, value1),
-                                                      (self.arguments[1].name, value2)])
-                                           )
+    def generate_commands(self):
+        """
+        generation (or overwrite) of the file containing the set of commands.
+        """
+        f = open(self.file_commands, 'w')
+        for permutation in self.cover:
+            command = self.app_name
+            for (arg, val) in permutation:
+                if val == 'flag':
+                    command += " " + arg
+                elif val.isnumeric() and int(val) >= 0:
+                    command += " {} {}".format(arg, val)
+                elif val.isnumeric() and int(val) < 0:
+                    command += " {} -- {}".format(arg, val)
+                elif val[0] == '-':
+                    command += " {} -- {}".format(arg, val)
+                else:
+                    command += " {} {}".format(arg, val)
+
+            command += '\n'
+            f.write(command)
+
+    def build_pairs_from_command(self, command):
+        args = []
+        if not command.isspace():
+            tokens = command.split()
+            # first token is app_name
+            tokens.pop(0)
+            while tokens:
+                nom = tokens.pop(0)
+                for e in self.arguments:
+                    if nom == e.name:
+                        if e.is_flag:
+                            args.append((nom, "flag"))
                         else:
-                            self.pairs.append(frozenset([(self.arguments[i].name, value1),
-                                                         (self.arguments[j].name, value2)])
-                                              )
+                            val = tokens.pop(0)
+                            if val == "--":
+                                val = tokens.pop(0)
+                            args.append((nom, val))
+                        break
+        pairs = []
+        while args:
+            arg1 = args.pop(0)
+            for arg2 in args:
+                pair = {arg1, arg2}
+                if not self.is_transgressing_constraint(pair):
+                    pairs.append({arg1, arg2})
+        return pairs
 
-        return init_pairs
-
-
-def generate_commands(test_set, commands_file):
-
-    f = open(commands_file, 'w')
-    for permutation in test_set.permutations:
-        command = test_set.app_name
-        for (arg, val) in permutation:
-            if val == '_on':
-                command += " " + arg
-            elif val == '_off':
-                continue
-            else:
-                command += " {} {}".format(arg, val)
-        command += '\n'
-        f.write(command)
+    def check_cover(self):
+        self.build_pairs_to_cover()
+        self.pairs.extend(self.init_pairs)
+        self.init_pairs.clear()
+        f = open(self.file_commands, 'r')
+        commands = f.readlines()
+        for command in commands:
+            pairs = self.build_pairs_from_command(command)
+            for pair in pairs:
+                try:
+                    while True:
+                        self.pairs.remove(pair)
+                except ValueError:
+                    pass
+        if self.pairs:
+            print(pairs)
+            print(len(self.pairs))
+            raise Exception("the command set generated isn't pairwise covering")
 
 
 def usage():
     print("question1.py <app_name> <argument_file> <constraint_file> <command_output_file>")
+    print("with:")
+    print("<app_name> = path of application invocation without parameters")
+    print("<argument_file> = file containing the arguments and their possible values")
+    print('<constraint_file> = file containing the constraints to apply on pairwise cover')
+    print("<command_output_file> = file regrouping all the commands generated")
 
 
 if __name__ == "__main__":
-    # if sys.argc != 5:
-    #     usage()
-    #     exit(1)
-    #
-    ts = TestSet(sys.argv[1], sys.argv[2], sys.argv[3])
-    # creation de la liste des arguments
-    ts.create_list_arg()
-    ts.create_list_constraints()
-    ts.build_args_permutations()
-    generate_commands(ts, sys.argv[4])
+    if len(sys.argv) != 5:
+        usage()
+        exit(1)
+
+    ts = TestSet(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    ts.generate_commands()
+    ts.check_cover()
