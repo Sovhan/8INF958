@@ -1,5 +1,6 @@
 # coding : utf-8
 import sys
+from random import sample
 
 
 # classe argument : permet de verifier si un argument est un flag, et quelles valeurs sont possibles
@@ -17,7 +18,7 @@ class Argument:
         print("nom :")
         print(self.name)
         print("is flag :")
-        print(self.isFlag)
+        print(self.is_flag)
         print("values :")
         print(self.values)
         print("**********")
@@ -80,6 +81,9 @@ class TestSet:
                 continue
             values = ligne.split()
             nom = values.pop(0)
+            # ignoring help flag
+            if nom == '-h':
+                continue
             self.arguments.append(Argument(nom, values[0] == 'flag', values))
 
         self.arguments.sort(key=lambda x: len(x.values), reverse=True)
@@ -125,8 +129,8 @@ class TestSet:
                             try:
                                 val = tokens.pop(0)
                             except IndexError:
-                                print("--------------------------------------------\n" + \
-                                      "constraint file inconsistent with arguments.\n" + \
+                                print("--------------------------------------------\n" +
+                                      "constraint file inconsistent with arguments.\n" +
                                       "--------------------------------------------", file=sys.stderr)
                                 exit(1)
 
@@ -207,6 +211,11 @@ class TestSet:
         return selected
 
     def generate_pairs_from_permutation(self, permutation):
+        """
+        regeneration of pairs covered by a permutation
+        :param permutation:  set of (arg, val)
+        :return:
+        """
         while permutation:
             pair_tmp = permutation.pop()
             for pair in permutation:
@@ -272,6 +281,17 @@ class TestSet:
                                 self.permutations.remove(permutation2)
                             break
 
+    def complete_short_permutations(self):
+
+        for permutation in self.cover:
+            args_in = [arg for arg, val in permutation]
+            if len(permutation) < len(self.arguments):
+                for argument in self.arguments:
+                    if argument.name not in args_in:
+                        if not argument.is_flag:
+                            permutation.add((argument.name, sample(argument.values, 1)[0]))
+                            args_in.append(argument.name)
+
     def generate_commands(self):
         """
         generation (or overwrite) of the file containing the set of commands.
@@ -285,9 +305,9 @@ class TestSet:
                 elif val.isnumeric() and int(val) >= 0:
                     command += " {} {}".format(arg, val)
                 elif val.isnumeric() and int(val) < 0:
-                    command += " {} -- {}".format(arg, val)
+                    command += ' {} "{}"'.format(arg, val)
                 elif val[0] == '-':
-                    command += " {} -- {}".format(arg, val)
+                    command += ' {} "{}"'.format(arg, val)
                 else:
                     command += " {} {}".format(arg, val)
 
@@ -308,8 +328,7 @@ class TestSet:
                             args.append((nom, "flag"))
                         else:
                             val = tokens.pop(0)
-                            if val == "--":
-                                val = tokens.pop(0)
+                            val = val.replace('\"', '')
                             args.append((nom, val))
                         break
         pairs = []
@@ -336,7 +355,6 @@ class TestSet:
                 except ValueError:
                     pass
         if self.pairs:
-            print(pairs)
             print(len(self.pairs))
             raise Exception("the command set generated isn't pairwise covering")
 
@@ -356,5 +374,8 @@ if __name__ == "__main__":
         exit(1)
 
     ts = TestSet(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    ts.generate_commands()
+    ts.check_cover()
+    ts.complete_short_permutations()
     ts.generate_commands()
     ts.check_cover()
