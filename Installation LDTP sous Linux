@@ -1,0 +1,19 @@
+#Pour l'installation : 
+sudo apt-get install ldtp
+sudo apt-get install 'xmlrpclib quelque chose utilities'
+sudo apt-get install python
+
+#Pour lancer le serveur : 
+sudo easy_install ldtp
+python -c "import ldtpd;ldtpd.main()"
+
+#Le serveur est censé être lancé. Dans un autre deamon ou terminal : 
+python
+import xmlrpclib
+proxy = xmlrpclib.ServerProxy("http://localhost:4118")
+from ldtp import *
+
+exemple de commande :
+proxy.launchapp("gedit")
+
+#Maintenant on peut utiliser le client pour poser des questions au serveur. 
