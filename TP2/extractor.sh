@@ -1,9 +1,12 @@
 # on recupere la sortie du -h dans file.txt
-/home/stev/tp2-app.sh -h | sed -e '/^$/d' > file.txt
+echo "reading application help"
+$1 -h | sed -e '/^$/d' > file.txt
 
 # on recupere tous les arguments (ligne commence par  -)
+echo "arguments extraction"
 sed '/^ *-/!d' file.txt > arg.txt
 # on recupere toutes les contraintes (contiennent un &)
+echo "constraint extraction"
 sed '/&/!d' file.txt > contraintes.txt
 
 
@@ -12,5 +15,4 @@ sed -i "s/& //g" contraintes.txt
 sed -i "s/\= //g" contraintes.txt
 sed -i "s/^ *-//g" contraintes.txt
 sed -i "s/,//g" arg.txt
-
-# on appelle le fichier python
+rm file.txt
