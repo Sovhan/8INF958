@@ -1,3 +1,6 @@
+Adresse du bug : 
+https://bugs.documentfoundation.org/show_bug.cgi?id=83192
+
 #Pour l'installation : 
 sudo apt-get install ldtp
 sudo apt-get install 'xmlrpclib quelque chose utilities'
