@@ -2,33 +2,33 @@
 if [ $# -ne 1 ]
 then
 	echo "one parameter expected, got ${#}"
-	exit 3
-else
-	echo "$# params"
+	echo "usage extractor.sh <app_path>"
+        exit 1 
 fi
 
 
 # on recupere la sortie du -h dans file.txt
-#echo "reading application help"
+echo -e "\nreading application help"
 if [ -n ${1:?} ] 
 then
 	$1 -h | sed -e '/^$/d' > file.txt
+	echo -e "\e[1;92m OK \e[0m"
 
 # on recupere tous les arguments (ligne commence par  -)
-#echo "arguments extraction"
+	echo -e "arguments extraction"
 	sed '/^ *-/!d' file.txt > arg.txt
+	echo -e "\e[1;92m OK \e[0m"
 # on recupere toutes les contraintes (contiennent un &)
-#echo "constraint extraction"
+	echo -e "constraints extraction"
 	sed '/&/!d' file.txt > contraintes.txt
-
+	echo -e "\e[1;92m OK \e[0m"
 
 # on efface les &, = dans contraintes.txt et les virgules dans arg.txt
+	echo -e "arguments and constraints files formating"
 	sed -i "s/& //g" contraintes.txt
 	sed -i "s/\= //g" contraintes.txt
 	sed -i "s/^ *-//g" contraintes.txt
 	sed -i "s/,//g" arg.txt
 	rm file.txt
-else
-	echo "usage extractor.sh <app_path>"
-	exit 1
+	echo -e "\e[1;92m OK \e[0m\n"
 fi
