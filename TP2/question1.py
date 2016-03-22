@@ -58,7 +58,8 @@ class TestSet:
         try:
             f = open(self.file_args, 'r')
         except FileNotFoundError:
-            raise FileNotFoundError("No arguments file found at specified path")
+            print("No arguments file found at specified path", file=sys.stderr)
+            exit(1)
 
         # split the lines of the file into a list
         lignes = f.readlines()
