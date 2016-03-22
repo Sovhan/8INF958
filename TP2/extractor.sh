@@ -1,3 +1,4 @@
+#!/bin/bash
 #netoyage des entrées
 if [ $# -ne 1 ]
 then
