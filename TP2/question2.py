@@ -17,12 +17,10 @@ result = guiexist(nameWindowsPrincipale)
 print(result)
 
 print("Test existence bouton.")
-r = proxy.doesmenuitemexist(nameWindowsPrincipale, 'mnuFile;'
-                                                   'mnuNew;'
-                                                   'mnuText Document')
+r = proxy.doesmenuitemexist(nameWindowsPrincipale, 'mnuTools')
 print(r)
 pane = 'Macro Selector'
-if r and not guiexist(pane):
+if r:
     proxy.selectmenuitem(nameWindowsPrincipale, 'mnuTools;mnuMacros')
     proxy.click(nameWindowsPrincipale, 'mnuRun Macro...')
     print(proxy.doesrowexist(pane, 'treeLibrary', 'Untitled 1'))
