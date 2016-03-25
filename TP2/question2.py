@@ -21,6 +21,13 @@ r = proxy.doesmenuitemexist(nameWindowsPrincipale, 'mnuFile;'
                                                    'mnuNew;'
                                                    'mnuText Document')
 print(r)
-if r:
+pane = 'Macro Selector'
+if r and not guiexist(pane):
     proxy.selectmenuitem(nameWindowsPrincipale, 'mnuTools;mnuMacros')
     proxy.click(nameWindowsPrincipale, 'mnuRun Macro...')
+    print(proxy.doesrowexist(pane, 'treeLibrary', 'Untitled 1'))
+    l = proxy.getobjectinfo(pane, 'treeLibrary')
+    for info in l:
+        print(info, " = ", proxy.getobjectproperty('Macro Selector', 'treeLibrary', info))
+
+    proxy.selectrow(pane, 'Library', 'Untitled 1')
