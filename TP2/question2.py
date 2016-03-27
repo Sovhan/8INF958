@@ -18,14 +18,19 @@ print(result)
 
 print("Test existence bouton.")
 r = proxy.doesmenuitemexist(nameWindowsPrincipale, 'mnuTools')
+
 print(r)
 pane = 'Macro Selector'
 if r:
-    proxy.selectmenuitem(nameWindowsPrincipale, 'mnuTools;mnuMacros')
+    proxy.selectmenuitem(nameWindowsPrincipale, 'mnuTools')
     proxy.click(nameWindowsPrincipale, 'mnuRun Macro...')
-    print(proxy.doesrowexist(pane, 'treeLibrary', 'Untitled 1'))
-    l = proxy.getobjectinfo(pane, 'treeLibrary')
-    for info in l:
-        print(info, " = ", proxy.getobjectproperty('Macro Selector', 'treeLibrary', info))
-
-    proxy.selectrow(pane, 'Library', 'Untitled 1')
+    proxy.closewindow(pane)
+    proxy.selectmenuitem(nameWindowsPrincipale, 'mnuTools')
+    proxy.click(nameWindowsPrincipale, 'mnuRun Macro...')
+    
+    # print(proxy.doesrowexist(pane, 'treeLibrary', 'Untitled 1'))
+    # l = proxy.getobjectinfo(pane, 'treeLibrary')
+    # for info in l:
+    #     print(info, " = ", proxy.getobjectproperty('Macro Selector', 'treeLibrary', info))
+    #
+    # proxy.selectrow(pane, 'treeLibrary', 'Untitled 1')
