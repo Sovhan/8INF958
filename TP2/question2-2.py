@@ -15,6 +15,19 @@ print("Test existence de la fenetre.")
 result = guiexist(nameWindowsPrincipale)
 print(result)
 
+for _ in range(10):
+    proxy.generatekeyevent('f')
+    proxy.generatekeyevent('<ctrl><enter>')
+
+proxy.generatekeyevent('<ctrl>f')
+wait(1)
+proxy.generatekeyevent('f')
+print(proxy.getchild(nameWindowsPrincipale, 'Find Next'))
+proxy.mousemove(nameWindowsPrincipale, 'btnFindNext')
+proxy.mouseleftclick(nameWindowsPrincipale, 'btnFindNext')
+wait(1)
+proxy.generatekeyevent('<enter>')
 proxy.generatekeyevent('<ctrl>f')
 proxy.generatekeyevent('<ctrl>f')
-proxy.generatekeyevent('<esc><esc>')
+proxy.generatekeyevent('<ctrl>f')
+
