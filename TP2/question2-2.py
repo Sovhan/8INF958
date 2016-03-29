@@ -8,7 +8,7 @@ proxy = xmlrpclib.ServerProxy("http://localhost:4118")
 nameWindowsPrincipale = "Untitled 1 - LibreOffice Writer"
 # permet de chercher si la fenetre que je viens d'ouvrir existe.
 if not guiexist(nameWindowsPrincipale):
-    proxy.launchapp("libreoffice4.3", ['--writer'])
+    proxy.launchapp("libreoffice", ['--writer'])
 waittillguiexist(nameWindowsPrincipale)
 
 print("Test existence de la fenetre.")
